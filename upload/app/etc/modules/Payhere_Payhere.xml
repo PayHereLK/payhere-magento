@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<config>
+    <modules>
+        <Payhere_Payhere>
+            <active>true</active>
+            <codePool>local</codePool>
+        </Payhere_Payhere>
+    </modules>
+</config>

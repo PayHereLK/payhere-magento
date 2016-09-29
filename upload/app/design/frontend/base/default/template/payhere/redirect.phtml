@@ -1,0 +1,87 @@
+<?php
+// Retrieve order
+$_order = new Mage_Sales_Model_Order();
+$orderId = Mage::getSingleton('checkout/session')->getLastRealOrderId();
+$_order->loadByIncrementId($orderId);
+
+$sales_order = Mage::getModel('sales/order')->loadByIncrementId($orderId);
+
+if($sales_order->getCustomerId() == ''){ 
+
+//guests
+$first_name = $sales_order->getBillingAddress()->getFirstname();
+$last_name  = $sales_order->getBillingAddress()->getLastname();
+$email		= $sales_order->getBillingAddress()->getEmail();
+$phone      = $sales_order->getBillingAddress()->getTelephone();
+$address	= $sales_order->getBillingAddress()->getStreet();
+$city		= $sales_order->getBillingAddress()->getCity();
+$country	= $sales_order->getBillingAddress()->getCountry();
+
+}else{ 
+
+//registered users
+$customer   = Mage::getModel('customer/customer')->load($sales_order->getCustomerId()); 
+$first_name = $customer->getDefaultBillingAddress()->getFirstname();
+$last_name  = $customer->getDefaultBillingAddress()->getLastname();
+$email		= $customer->getEmail();
+$phone      = $customer->getDefaultBillingAddress()->getTelephone();
+$address	= $customer->getDefaultBillingAddress()->getStreet();
+$city		= $customer->getDefaultBillingAddress()->getCity();
+$country	= $customer->getDefaultBillingAddress()->getCountry();
+
+}
+
+
+$base_url    = Mage::getBaseUrl(Mage_Core_Model_Store::URL_TYPE_WEB);
+$merchant_id = Mage::getStoreConfig('payment/payhere/merchant_id');
+$test_mode   = Mage::getStoreConfig('payment/payhere/test_mode');
+$currency	 = Mage::app()->getStore()->getCurrentCurrencyCode();
+
+if($test_mode ==1){
+	$checkout_url = "https://sandbox.payhere.lk/pay/checkout"; 
+}else if($test_mode == 0){
+	$checkout_url = "https://www.payhere.lk/pay/checkout";	
+}
+
+
+
+   $items = $sales_order->getAllVisibleItems();
+   $item_names = array();
+   $item_count = 1;
+   foreach($items as $i):
+	  $item_names[] = $i->getName();
+		  $optional_params .=
+		  '
+		   <input type="hidden" name="item_name_'.$item_count.'" value="'.$i->getName().'">
+		   <input type="hidden" name="item_number_'.$item_count.'" value="'.$i->getProductId().'">
+		   <input type="hidden" name="amount_'.$item_count.'" value="'.number_format((float)$i->getPrice(), 2, '.', '').'">
+		   <input type="hidden" name="quantity_'.$item_count.'" value="'.round($i->getData('qty_ordered')).'">
+		  ';
+	  $item_count++;
+   endforeach;
+   
+$item_names = implode(", ", $item_names);
+
+
+?>
+<form name="payherecheckoutform" method="post" action="<?php echo $checkout_url; ?>">
+	<input type="hidden" name="order_id" value="<?php echo $orderId; ?>">
+    <input type="hidden" name="amount" value="<?php echo number_format((float)$_order->getBaseGrandTotal(), 2, '.', ''); ?>">
+    <input type="hidden" name="merchant_id" value="<?php echo $merchant_id; ?>">      
+    <input type="hidden" name="return_url" value="<?php echo $base_url; ?>index.php/customer/account/">
+    <input type="hidden" name="cancel_url" value="<?php echo $base_url; ?>payhere/payment/cancel">
+    <input type="hidden" name="notify_url" value="<?php echo $base_url; ?>payhere/payment/response">
+    <input type="hidden" name="first_name" value="<?php echo $first_name; ?>">
+    <input type="hidden" name="last_name" value="<?php echo $last_name; ?>">
+    <input type="hidden" name="email" value="<?php echo $email; ?>">
+    <input type="hidden" name="phone" value="<?php  echo $phone; ?>">
+    <input type="hidden" name="address" value="<?php echo $address[0];?>">
+    <input type="hidden" name="city" value="<?php  echo $city; ?>">
+    <input type="hidden" name="country" value="<?php echo $country; ?>">
+    <input type="hidden" name="items" value="<?php echo $item_names; ?>">
+    <input type="hidden" name="currency" value="<?php echo $currency; ?>">
+    <?php echo $optional_params; ?>
+</form>
+<script type="text/javascript">
+document.payherecheckoutform.submit();
+</script>
